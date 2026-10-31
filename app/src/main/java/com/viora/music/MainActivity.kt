@@ -76,7 +76,7 @@ class MainActivity : ComponentActivity() {
         }, ContextCompat.getMainExecutor(this))
 
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme(primary = Purple, background = Black, surface = Surface, onBackground = Color.White, onSurface = Color.White, onPrimary = Black, onSurfaceVariant = Muted, onSecondaryContainer = Color.White, onSurfaceContainer = Color.White)) {
+            MaterialTheme(colorScheme = darkColorScheme(primary = Purple, background = Black, surface = Surface, onBackground = Color.White, onSurface = Color.White, onPrimary = Black, onSurfaceVariant = Muted, onSecondaryContainer = Color.White)) {
                 MusicScreen(current.value, playing.value, loading.value, status.value,
                     onPlay = { playTrack(it) },
                     onToggle = { if (controller?.isPlaying == true) controller?.pause() else controller?.play() },
