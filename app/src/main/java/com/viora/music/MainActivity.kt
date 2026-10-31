@@ -63,7 +63,7 @@ fun VioraUI(play: (Track) -> Unit) {
                 Thread {
                     try {
                         val endpoint = "https://api.audius.co/v1/tracks/search?query=" + java.net.URLEncoder.encode(query, "UTF-8") + "&app_name=VioraMusic"
-                        val json = JSONObject(URL(endpoint).openText()).getJSONArray("data")
+                        val json = JSONObject(URL(endpoint).openConnection().getInputStream().bufferedReader().use { it.readText() }).getJSONArray("data")
                         val found = (0 until minOf(json.length(), 30)).map { i ->
                             val t = json.getJSONObject(i)
                             Track(t.optString("title"), t.optJSONObject("user")?.optString("name") ?: "Unknown",
