@@ -76,7 +76,7 @@ class MainActivity : ComponentActivity() {
         }, ContextCompat.getMainExecutor(this))
 
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme(primary = Purple, background = Black, surface = Surface, onBackground = Color.White, onSurface = Color.White)) {
+            MaterialTheme(colorScheme = darkColorScheme(primary = Purple, background = Black, surface = Surface, onBackground = Color.White, onSurface = Color.White, onPrimary = Black, onSurfaceVariant = Muted, onSecondaryContainer = Color.White, onSurfaceContainer = Color.White)) {
                 MusicScreen(current.value, playing.value, loading.value, status.value,
                     onPlay = { playTrack(it) },
                     onToggle = { if (controller?.isPlaying == true) controller?.pause() else controller?.play() },
@@ -149,7 +149,7 @@ private fun MusicScreen(
                     Text("♫", color = Purple, style = MaterialTheme.typography.displayLarge)
                 }
                 Spacer(Modifier.height(28.dp))
-                Text(current.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 2)
+                Text(current.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2)
                 Text(current.artist, color = Muted)
                 Spacer(Modifier.height(18.dp))
                 Slider(value = progress, onValueChange = { progress = it }, onValueChangeFinished = { onSeek(progress) })
@@ -167,12 +167,37 @@ private fun MusicScreen(
         } else {
             Column(Modifier.weight(1f).padding(horizontal = 18.dp)) {
                 Spacer(Modifier.height(16.dp))
-                Text(when(tab) { 0 -> "Good to see you" ; 1 -> "Search"; else -> "Your Library" }, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text(when(tab) { 0 -> "Good evening" ; 1 -> "Search"; else -> "Your Library" }, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
                 Spacer(Modifier.height(20.dp))
-                if (tab == 1 || tab == 0) {
+                if (tab == 0) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("All", "Music", "Podcasts").forEach { label ->
+                            Surface(shape = RoundedCornerShape(22.dp), color = if (label == "All") Purple else Surface, modifier = Modifier.clickable { if (label == "Music") tab = 1 }) {
+                                Text(label, color = if (label == "All") Black else Color.White, modifier = Modifier.padding(horizontal = 17.dp, vertical = 10.dp))
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(26.dp))
+                    Text("Recently played", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(12.dp))
+                    if (current != null) {
+                        Row(Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(8.dp)).clickable { onPlay(current) }.padding(16.dp)) {
+                            Text("♫", color = Purple); Spacer(Modifier.width(14.dp)); Text(current.title, color = Color.White, maxLines = 1)
+                        }
+                    } else {
+                        Text("Your recently played music will appear here.", color = Muted)
+                    }
+                    Spacer(Modifier.height(30.dp))
+                    Text("Made for your listening", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Discover music and build your library as you listen.", color = Muted)
+                    Spacer(Modifier.height(14.dp))
+                    Button(onClick = { tab = 1 }, colors = ButtonDefaults.buttonColors(containerColor = Purple)) { Text("Find music", color = Black) }
+                } else if (tab == 1) {
                     OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("What do you want to listen to?") }, singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Purple))
+                        label = { Text("What do you want to listen to?", color = Muted) }, singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Purple, unfocusedBorderColor = Muted, focusedTextColor = Color.White, unfocusedTextColor = Color.White))
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(enabled = query.isNotBlank() && !busy, onClick = {
@@ -206,7 +231,7 @@ private fun MusicScreen(
                                 }
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(track.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
+                                    Text(track.title, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
                                     Text(track.artist + " · " + track.source, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 TextButton(onClick = {
@@ -216,6 +241,7 @@ private fun MusicScreen(
                         }
                     }
                 } else {
+                    Text("Liked songs", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text("Saved in this session", color = Muted)
                     Spacer(Modifier.height(12.dp))
                     LazyColumn {
@@ -230,7 +256,7 @@ private fun MusicScreen(
                     Box(Modifier.size(40.dp).background(Color(0xFF30283D), RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) { Text("♫", color = Purple) }
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(current.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
+                        Text(current.title, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
                         Text(if (loading) "Buffering…" else current.artist, color = Muted, maxLines = 1)
                     }
                     TextButton(onClick = onToggle) { Text(if (playing) "Ⅱ" else "▶", color = Purple) }
