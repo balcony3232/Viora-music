@@ -4,6 +4,8 @@ import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.*
@@ -45,6 +47,16 @@ class MainActivity : ComponentActivity() {
     private val status = mutableStateOf("")
     private val position = mutableLongStateOf(0L)
     private val duration = mutableLongStateOf(0L)
+    private val progressHandler = Handler(Looper.getMainLooper())
+    private val progressTick = object : Runnable {
+        override fun run() {
+            controller?.let { c ->
+                position.longValue = c.currentPosition.coerceAtLeast(0L)
+                duration.longValue = if (c.duration > 0) c.duration else 0L
+            }
+            progressHandler.postDelayed(this, 500L)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,9 +87,10 @@ class MainActivity : ComponentActivity() {
             } catch (e: Exception) { status.value = "Player unavailable: " + e.message }
         }, ContextCompat.getMainExecutor(this))
 
+        progressHandler.post(progressTick)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(primary = Purple, background = Black, surface = Surface, onBackground = Color.White, onSurface = Color.White, onPrimary = Black, onSurfaceVariant = Muted, onSecondaryContainer = Color.White)) {
-                MusicScreen(current.value, playing.value, loading.value, status.value,
+                MusicScreen(current.value, playing.value, loading.value, status.value, position.longValue, duration.longValue,
                     onPlay = { playTrack(it) },
                     onToggle = { if (controller?.isPlaying == true) controller?.pause() else controller?.play() },
                     onYouTube = { query ->
@@ -92,6 +105,8 @@ class MainActivity : ComponentActivity() {
                         val d = controller?.duration ?: 0L
                         if (d > 0) controller?.seekTo((d * fraction).toLong())
                     },
+                    onPrevious = { controller?.seekToPreviousMediaItem() },
+                    onNext = { controller?.seekToNextMediaItem() },
                     onRepeat = { mode -> controller?.repeatMode = mode },
                     onShuffle = { enabled -> controller?.shuffleModeEnabled = enabled })
             }
@@ -114,6 +129,7 @@ class MainActivity : ComponentActivity() {
         c.play()
     }
     override fun onDestroy() {
+        progressHandler.removeCallbacks(progressTick)
         controller?.release()
         super.onDestroy()
     }
@@ -121,10 +137,10 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun MusicScreen(
-    current: Track?, playing: Boolean, loading: Boolean, status: String,
+    current: Track?, playing: Boolean, loading: Boolean, status: String, positionMs: Long, durationMs: Long,
     onPlay: (Track) -> Unit, onToggle: () -> Unit,
     onYouTube: (String) -> Unit, onSoundCloud: (String) -> Unit,
-    onSeek: (Float) -> Unit, onRepeat: (Int) -> Unit, onShuffle: (Boolean) -> Unit
+    onSeek: (Float) -> Unit, onPrevious: () -> Unit, onNext: () -> Unit, onRepeat: (Int) -> Unit, onShuffle: (Boolean) -> Unit
 ) {
     var tab by remember { mutableStateOf(0) }
     var query by remember { mutableStateOf("") }
@@ -135,7 +151,9 @@ private fun MusicScreen(
     var favourites by remember { mutableStateOf(setOf<String>()) }
     var shuffle by remember { mutableStateOf(false) }
     var repeat by remember { mutableIntStateOf(Player.REPEAT_MODE_OFF) }
-    var progress by remember { mutableFloatStateOf(0f) }
+    var dragging by remember { mutableStateOf(false) }
+    var dragProgress by remember { mutableFloatStateOf(0f) }
+    val progress = if (dragging) dragProgress else if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
 
     Column(Modifier.fillMaxSize().background(Black)) {
         if (expanded && current != null) {
@@ -149,13 +167,22 @@ private fun MusicScreen(
                     Text("♫", color = Purple, style = MaterialTheme.typography.displayLarge)
                 }
                 Spacer(Modifier.height(28.dp))
-                Text(current.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2)
-                Text(current.artist, color = Muted)
+                Column(Modifier.fillMaxWidth()) {
+                    Text(current.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2)
+                    Spacer(Modifier.height(4.dp))
+                    Text(current.artist, color = Muted)
+                }
                 Spacer(Modifier.height(18.dp))
-                Slider(value = progress, onValueChange = { progress = it }, onValueChangeFinished = { onSeek(progress) })
+                Slider(value = progress, onValueChange = { dragging = true; dragProgress = it }, onValueChangeFinished = { onSeek(dragProgress); dragging = false })
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(formatTime(positionMs), color = Muted, style = MaterialTheme.typography.labelSmall)
+                    Text(formatTime(durationMs), color = Muted, style = MaterialTheme.typography.labelSmall)
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { shuffle = !shuffle; onShuffle(shuffle) }) { Text("⇄", color = if (shuffle) Purple else Muted) }
-                    Button(onClick = onToggle, colors = ButtonDefaults.buttonColors(containerColor = Purple)) { Text(if (loading) "Loading…" else if (playing) "Ⅱ Pause" else "▶ Play", color = Black) }
+                    TextButton(onClick = onPrevious) { Text("⏮", color = Color.White) }
+                    Button(onClick = onToggle, colors = ButtonDefaults.buttonColors(containerColor = Purple)) { Text(if (loading) "Loading…" else if (playing) "Ⅱ" else "▶", color = Black) }
+                    TextButton(onClick = onNext) { Text("⏭", color = Color.White) }
                     TextButton(onClick = {
                         repeat = if (repeat == Player.REPEAT_MODE_OFF) Player.REPEAT_MODE_ALL else if (repeat == Player.REPEAT_MODE_ALL) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
                         onRepeat(repeat)
@@ -272,4 +299,9 @@ private fun MusicScreen(
             }
         }
     }
+}
+
+private fun formatTime(milliseconds: Long): String {
+    val seconds = (milliseconds.coerceAtLeast(0L) / 1000L)
+    return "%d:%02d".format(seconds / 60L, seconds % 60L)
 }
