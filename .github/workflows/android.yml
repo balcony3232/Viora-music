@@ -2,7 +2,7 @@ name: Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [v0.1-development]
+    branches: [v0.1-development, v0.2-development]
 jobs:
   build:
     runs-on: ubuntu-24.04
